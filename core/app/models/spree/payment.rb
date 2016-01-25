@@ -9,6 +9,7 @@ module Spree
 
     NON_RISKY_AVS_CODES = ['B', 'D', 'H', 'J', 'M', 'Q', 'T', 'V', 'X', 'Y'].freeze
     RISKY_AVS_CODES     = ['A', 'C', 'E', 'F', 'G', 'I', 'K', 'L', 'N', 'O', 'P', 'R', 'S', 'U', 'W', 'Z'].freeze
+    INOPERATIVE_STATES  = %w(failed invalid)
 
     with_options inverse_of: :payments do
       belongs_to :order, class_name: 'Spree::Order', touch: true
@@ -53,7 +54,7 @@ module Spree
     scope :failed, -> { with_state('failed') }
 
     scope :risky, -> { where("avs_response IN (?) OR (cvv_response_code IS NOT NULL and cvv_response_code != 'M') OR state = 'failed'", RISKY_AVS_CODES) }
-    scope :valid, -> { where.not(state: %w(failed invalid)) }
+    scope :valid, -> { where.not(state: INOPERATIVE_STATES) }
 
     # transaction_id is much easier to understand
     def transaction_id
@@ -192,7 +193,7 @@ module Spree
 
       def create_payment_profile
         # Don't attempt to create on bad payments.
-        return if %w(invalid failed).include?(state)
+        return if inoperative?
         # Payment profile cannot be created without source
         return unless source
         # Imported payments shouldn't create a payment profile.
@@ -204,11 +205,15 @@ module Spree
       end
 
       def invalidate_old_payments
-        if state != 'invalid' and state != 'failed'
+        unless inoperative?
           order.payments.with_state('checkout').where("id != ?", self.id).each do |payment|
             payment.invalidate!
           end
         end
+      end
+
+      def inoperative?
+        INOPERATIVE_STATES.include?(state)
       end
 
       def split_uncaptured_amount
