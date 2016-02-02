@@ -8,7 +8,8 @@ module Spree
 
     belongs_to :variant, class_name: 'Spree::Variant', inverse_of: :prices, touch: true
 
-    validate :check_price
+    before_validation :set_currency_if_not_present
+
     validates :amount, allow_nil: true, numericality: {
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: MAXIMUM_AMOUNT
@@ -47,7 +48,7 @@ module Spree
 
     private
 
-    def check_price
+    def set_currency_if_not_present
       self.currency ||= Spree::Config[:currency]
     end
   end
