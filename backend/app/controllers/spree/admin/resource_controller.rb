@@ -112,7 +112,10 @@ class Spree::Admin::ResourceController < Spree::Admin::BaseController
 
   def resource_not_found
     flash[:error] = flash_message_for(model_class.new, :not_found)
-    redirect_to collection_url
+    respond_to do |format|
+      format.html { redirect_to collection_url }
+      format.js { render partial: "spree/admin/shared/destroy" }
+    end
   end
 
   def resource
